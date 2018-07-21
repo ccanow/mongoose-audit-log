@@ -17,6 +17,10 @@
     "history",
     "version"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ccanow/mongoose-audit-log"
+  },
   "devDependencies": {
     "chai": "^4.1.2",
     "dirty-chai": "^2.0.1",
