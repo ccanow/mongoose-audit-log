@@ -1,0 +1,30 @@
+{
+  "name": "mongoose-audit-log",
+  "version": "1.0.1",
+  "description": "Manage changes to Mongo collections",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha --exit src/*.spec.js",
+    "coverage": "nyc --reporter=html --reporter=text -x ./src/*.spec.js npm test"
+  },
+  "author": "Carsten Canow (@gmail.com)",
+  "license": "MIT",
+  "keywords": [
+    "mongoose",
+    "audit",
+    "log",
+    "trail",
+    "history",
+    "version"
+  ],
+  "devDependencies": {
+    "chai": "^4.1.2",
+    "dirty-chai": "^2.0.1",
+    "mocha": "^5.2.0",
+    "nyc": "^12.0.2"
+  },
+  "dependencies": {
+    "deep-diff": "^1.0.1",
+    "mongoose": "^5.2.4"
+  }
+}
