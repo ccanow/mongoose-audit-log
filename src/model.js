@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const auditSchema = new mongoose.Schema({
   itemName: String,
-  itemId: mongoose.Schema.Types.ObjectId,
+  itemId: {},
   changes: {},
   user: {}
 }, { timestamps: true });
