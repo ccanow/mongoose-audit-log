@@ -107,7 +107,7 @@ const addFindAndDelete = (query, next) => {
 /**
  * @param {Object} schema - Mongoose schema object
  */
-const plugin = function (schema) {
+const plugin = function Audit (schema) {
   schema.pre('save', function (next) {
     if (this.isNew) {
       return next();
