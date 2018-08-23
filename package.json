@@ -1,6 +1,6 @@
 {
   "name": "mongoose-audit-log",
-  "version": "1.0.4",
+  "version": "2.0.0",
   "description": "Manage changes to Mongo collections",
   "main": "index.js",
   "scripts": {
