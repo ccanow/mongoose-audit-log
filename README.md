@@ -54,3 +54,18 @@ Order.findById(123)
   .save();
 ```
 
+## Query history
+
+Please find below an example route, to request the history of a given type and id:
+
+```javascript
+const Audit = require('mongoose-audit-log').model;
+const User = require('../models/User');
+
+router.get('/api/users/:id/history', (req, res, next) => {
+  const itemName = User.collection.collectionName;
+  Audit.find({ itemId: req.params.id, itemName })
+    .then(history => res.json(history))
+    .catch(next);
+});
+```

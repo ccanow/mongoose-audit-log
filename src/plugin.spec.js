@@ -20,6 +20,16 @@ const createTestModel = (getUser) => {
     date: {
       type: Date,
       default: Date.now()
+    },
+    empty: String,
+    child: {
+      name: String,
+      number: Number
+    },
+    entity: {
+      _id: String,
+      id: String,
+      name: String
     }
   }, { timestamps: true });
   testSchema.plugin(plugin, getUser);
@@ -53,6 +63,161 @@ describe('audit', function () {
         .save()
         .then(() => done())
         .catch(done);
+    });
+
+    it('should create single values for changes on siblings (non-entities)', function () {
+      const expectedName = 'test';
+      const expectedNumber = 123;
+      test.child = { name: expectedName, number: expectedNumber };
+      test.__user = auditUser;
+      return test.save()
+        .then(() =>
+          Audit.find({ itemId: test._id }, function (err, audit) {
+            expect(err).to.null();
+            expect(audit.length).equal(1);
+            const entry = audit[0];
+            expect(entry.changes['child.name'].to).equal(expectedName);
+            expect(entry.changes['child.name'].type).equal('Add');
+            expect(entry.changes['child.number'].to).equal(expectedNumber);
+            expect(entry.changes['child.number'].type).equal('Add');
+          })
+        );
+    });
+
+    it('should create single values for changes of siblings (non-entities) on remove', function () {
+      const expectedName = 'test';
+      const expectedNumber = 123;
+      test.child = { name: expectedName, number: expectedNumber };
+      test.__user = auditUser;
+      return test.save()
+        .then(result => {
+          result.child = undefined;
+          result.__user = auditUser;
+          return result.save()
+            .then(() =>
+              Audit.find({ itemId: test._id }, function (err, audit) {
+                expect(err).to.null();
+                expect(audit.length).equal(2);
+                const entry = audit[1];
+                expect(entry.changes['child.name'].from).equal(expectedName);
+                expect(entry.changes['child.name'].to).to.be.undefined();
+                expect(entry.changes['child.name'].type).equal('Delete');
+                expect(entry.changes['child.number'].from).equal(expectedNumber);
+                expect(entry.changes['child.number'].to).to.be.undefined();
+                expect(entry.changes['child.number'].type).equal('Delete');
+              })
+            );
+        });
+    });
+
+    it('should create combined value for changes on entities (with "_id"-field)', function () {
+      const expectedId = '123';
+      const expectedName = 'test';
+      test.entity = { name: expectedName, _id: expectedId };
+      test.__user = auditUser;
+      return test.save()
+        .then(() =>
+          Audit.find({ itemId: test._id }, function (err, audit) {
+            expect(err).to.null();
+            expect(audit.length).equal(1);
+            const entry = audit[0];
+            expect(entry.changes.entity.to._id).equal(expectedId);
+            expect(entry.changes.entity.to.name).equal(expectedName);
+            expect(entry.changes.entity.type).equal('Add');
+          })
+        );
+    });
+
+    it('should create combined value for changes on entities (with "id"-field)', function () {
+      const expectedId = '123';
+      const expectedName = 'test';
+      test.entity = { name: expectedName, id: expectedId };
+      test.__user = auditUser;
+      return test.save()
+        .then(() =>
+          Audit.find({ itemId: test._id }, function (err, audit) {
+            expect(err).to.null();
+            expect(audit.length).equal(1);
+            const entry = audit[0];
+            expect(entry.changes.entity.to.id).equal(expectedId);
+            expect(entry.changes.entity.to.name).equal(expectedName);
+            expect(entry.changes.entity.type).equal('Add');
+          })
+        );
+    });
+
+    it('should create combined value for changes of entities (with "_id"-field) on remove', function () {
+      const expectedId = '123';
+      const expectedName = 'test';
+      test.entity = { name: expectedName, _id: expectedId };
+      test.__user = auditUser;
+      return test.save()
+        .then(result => {
+          result.entity = undefined;
+          result.__user = auditUser;
+          return result.save()
+            .then(() =>
+              Audit.find({ itemId: test._id }, function (err, audit) {
+                expect(err).to.null();
+                expect(audit.length).equal(2);
+                const entry = audit[1];
+                expect(entry.changes.entity.from._id).equal(expectedId);
+                expect(entry.changes.entity.from.name).equal(expectedName);
+                expect(entry.changes.entity.to).to.be.undefined();
+                expect(entry.changes.entity.type).equal('Delete');
+              })
+            );
+        });
+    });
+
+    it('should create combined value for changes of entities (with "id"-field) on remove', function () {
+      const expectedId = '123';
+      const expectedName = 'test';
+      test.entity = { name: expectedName, id: expectedId };
+      test.__user = auditUser;
+      return test.save()
+        .then(result => {
+          result.entity = undefined;
+          result.__user = auditUser;
+          return result.save()
+            .then(() =>
+              Audit.find({ itemId: test._id }, function (err, audit) {
+                expect(err).to.null();
+                expect(audit.length).equal(2);
+                const entry = audit[1];
+                expect(entry.changes.entity.from.id).equal(expectedId);
+                expect(entry.changes.entity.from.name).equal(expectedName);
+                expect(entry.changes.entity.to).to.be.undefined();
+                expect(entry.changes.entity.type).equal('Delete');
+              })
+            );
+        });
+    });
+
+    it('should create type "Add" for new values', function () {
+      test.empty = 'test';
+      test.__user = auditUser;
+      return test.save()
+        .then(() =>
+          Audit.find({ itemId: test._id }, function (err, audit) {
+            expect(err).to.null();
+            expect(audit.length).equal(1);
+            expect(audit[0].changes.empty.type).equal('Add');
+          })
+        );
+    });
+
+    it('should create type "Delete" when value is being removed', function () {
+      test.name = undefined;
+      test.__user = auditUser;
+      return test.save()
+        .then(() =>
+          Audit.find({ itemId: test._id }, function (err, audit) {
+            expect(err).to.null();
+            expect(audit.length).equal(1);
+            expect(audit[0].changes.name.type).equal('Delete');
+          })
+        );
     });
 
     it('should create audit trail on save', function (done) {

@@ -3,6 +3,12 @@ const Audit = require('./model');
 
 const filter = (path, key) => path.length === 0 && ~['_id', '__v', 'createdAt', 'updatedAt'].indexOf(key);
 
+const isEmpty = value =>
+  value === undefined ||
+  value === null ||
+  (typeof value === 'object' && Object.keys(value).length === 0) ||
+  (typeof value === 'string' && value.trim().length === 0);
+
 const addAuditLogObject = (currentObject, original) => {
   const user = currentObject.__user || module.exports.getUser();
 
@@ -13,8 +19,8 @@ const addAuditLogObject = (currentObject, original) => {
   delete currentObject.__user;
 
   const changes = deepDiff(
-    JSON.parse(JSON.stringify(currentObject)),
     JSON.parse(JSON.stringify(original)),
+    JSON.parse(JSON.stringify(currentObject)),
     filter
   );
 
@@ -24,20 +30,14 @@ const addAuditLogObject = (currentObject, original) => {
       itemName: currentObject.constructor.modelName,
       changes: changes.reduce((obj, change) => {
         const key = change.path.join('.');
-        obj[key] = {
-          from: change.rhs,
-          to: change.lhs,
-          type: change.kind
-        };
         if (change.kind === 'D') {
-          obj[key] = {
-            from: change.lhs,
-            type: 'Delete'
-          };
+          handleAudits(change.lhs, 'from', 'Delete', obj, key);
+        } else if (change.kind === 'N') {
+          handleAudits(change.rhs, 'to', 'Add', obj, key);
         } else {
           obj[key] = {
-            from: change.rhs,
-            to: change.lhs,
+            from: change.lhs,
+            to: change.rhs,
             type: 'Edit'
           };
         }
@@ -48,6 +48,25 @@ const addAuditLogObject = (currentObject, original) => {
   }
   return Promise.resolve();
 };
+
+const handleAudits = (changes, target, type, obj, key) => {
+  if (typeof changes === 'object') {
+    if (Object.keys(changes).filter(key => key === '_id' || key === 'id').length) {
+      // entity found
+      obj[key] = { [target]: changes, type };
+    } else {
+      // sibling/sub-object
+      Object.entries(changes).forEach(([sub, value]) => {
+        if (!isEmpty(value)) {
+          obj[`${key}.${sub}`] = { [target]: value, type };
+        }
+      });
+    }
+  } else {
+    // primitive value
+    obj[key] = { [target]: changes, type };
+  }
+}
 
 const addAuditLog = (currentObject, next) => {
   currentObject.constructor
@@ -86,9 +105,12 @@ const addUpdate = (query, next, multi) => {
 };
 
 const addDelete = (currentObject, options, next) => {
-  const orig = Object.assign({ __user: options.__user }, currentObject._doc || currentObject);
+  const orig = Object.assign({}, currentObject._doc || currentObject);
   orig.constructor.modelName = currentObject.constructor.modelName;
-  return addAuditLogObject(orig, {})
+  return addAuditLogObject({
+    _id: currentObject._id,
+    __user: options.__user
+  }, orig)
     .then(() => next())
     .catch(next);
 };
@@ -107,7 +129,7 @@ const addFindAndDelete = (query, next) => {
 /**
  * @param {Object} schema - Mongoose schema object
  */
-const plugin = function Audit (schema) {
+const plugin = function Audit(schema) {
   schema.pre('save', function (next) {
     if (this.isNew) {
       return next();
