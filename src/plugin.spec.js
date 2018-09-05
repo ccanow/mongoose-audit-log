@@ -29,7 +29,8 @@ const createTestModel = (getUser) => {
     entity: {
       _id: String,
       id: String,
-      name: String
+      name: String,
+      array: []
     }
   }, { timestamps: true });
   testSchema.plugin(plugin, getUser);
@@ -121,9 +122,10 @@ describe('audit', function () {
             expect(err).to.null();
             expect(audit.length).equal(1);
             const entry = audit[0];
-            expect(entry.changes.entity.to._id).equal(expectedId);
-            expect(entry.changes.entity.to.name).equal(expectedName);
-            expect(entry.changes.entity.type).equal('Add');
+            expect(entry.changes['entity._id'].to).equal(expectedId);
+            expect(entry.changes['entity.name'].to).equal(expectedName);
+            expect(entry.changes['entity._id'].type).equal('Add');
+            expect(entry.changes['entity.name'].type).equal('Add');
           })
         );
     });
@@ -139,9 +141,10 @@ describe('audit', function () {
             expect(err).to.null();
             expect(audit.length).equal(1);
             const entry = audit[0];
-            expect(entry.changes.entity.to.id).equal(expectedId);
-            expect(entry.changes.entity.to.name).equal(expectedName);
-            expect(entry.changes.entity.type).equal('Add');
+            expect(entry.changes['entity.id'].to).equal(expectedId);
+            expect(entry.changes['entity.name'].to).equal(expectedName);
+            expect(entry.changes['entity.id'].type).equal('Add');
+            expect(entry.changes['entity.name'].type).equal('Add');
           })
         );
     });
@@ -189,6 +192,92 @@ describe('audit', function () {
                 expect(entry.changes.entity.from.name).equal(expectedName);
                 expect(entry.changes.entity.to).to.be.undefined();
                 expect(entry.changes.entity.type).equal('Delete');
+              })
+            );
+        });
+    });
+
+    it('should create type "Add" for adding values to arrays', function () {
+      const expectedValues = ['1', '2', 'X'];
+      test.entity = { array: [].concat(expectedValues) };
+      test.__user = auditUser;
+      return test.save()
+        .then(() =>
+          Audit.find({ itemId: test._id }, function (err, audit) {
+            expect(err).to.null();
+            expect(audit.length).equal(1);
+            const entry = audit[0];
+            expect(entry.changes['entity.array'].from.length).equal(0);
+            expect(entry.changes['entity.array'].to).to.have.members(expectedValues);
+            expect(entry.changes['entity.array'].type).equal('Add');
+          })
+        );
+    });
+
+    it('should create combined type "Edit" for adding values on arrays', function () {
+      const previousValues = ['1', '2', 'X'];
+      const expectedValues = previousValues.concat(['Y']);
+      test.entity = { array: [].concat(previousValues) };
+      test.__user = auditUser;
+      return test.save()
+        .then(filled => {
+          filled.entity.array = [].concat(expectedValues);
+          filled.__user = auditUser;
+          return filled.save()
+            .then(() =>
+              Audit.find({ itemId: test._id }, function (err, audit) {
+                expect(err).to.null();
+                expect(audit.length).equal(2);
+                const entry = audit[1];
+                expect(entry.changes['entity.array'].from).to.have.members(previousValues);
+                expect(entry.changes['entity.array'].to).to.have.members(expectedValues);
+                expect(entry.changes['entity.array'].type).equal('Edit');
+              })
+            );
+        });
+    });
+
+    it('should create combined type "Edit" for removing values on arrays', function () {
+      const previousValues = ['1', '2', 'X'];
+      const expectedValues = ['1', 'X'];
+      test.entity = { array: [].concat(previousValues) };
+      test.__user = auditUser;
+      return test.save()
+        .then(filled => {
+          filled.entity.array = [].concat(expectedValues);
+          filled.__user = auditUser;
+          return filled.save()
+            .then(() =>
+              Audit.find({ itemId: test._id }, function (err, audit) {
+                expect(err).to.null();
+                expect(audit.length).equal(2);
+                const entry = audit[1];
+                expect(entry.changes['entity.array'].from).to.have.members(previousValues);
+                expect(entry.changes['entity.array'].to).to.have.members(expectedValues);
+                expect(entry.changes['entity.array'].type).equal('Edit');
+              })
+            );
+        });
+    });
+
+    it('should create type "Delete" for removing all values from arrays', function () {
+      const previousValues = ['1', '2', 'X'];
+      const expectedValues = [];
+      test.entity = { array: [].concat(previousValues) };
+      test.__user = auditUser;
+      return test.save()
+        .then(filled => {
+          filled.entity.array = [].concat(expectedValues);
+          filled.__user = auditUser;
+          return filled.save()
+            .then(() =>
+              Audit.find({ itemId: test._id }, function (err, audit) {
+                expect(err).to.null();
+                expect(audit.length).equal(2);
+                const entry = audit[1];
+                expect(entry.changes['entity.array'].from).to.have.members(previousValues);
+                expect(entry.changes['entity.array'].to).to.have.members(expectedValues);
+                expect(entry.changes['entity.array'].type).equal('Delete');
               })
             );
         });

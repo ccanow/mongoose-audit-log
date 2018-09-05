@@ -9,6 +9,24 @@ const isEmpty = value =>
   (typeof value === 'object' && Object.keys(value).length === 0) ||
   (typeof value === 'string' && value.trim().length === 0);
 
+const types = {
+  add: 'Add',
+  edit: 'Edit',
+  delete: 'Delete'
+};
+
+const extractArray = (data, path) => {
+  if (path.length === 1) {
+    return data[path[0]];
+  }
+  const parts = [].concat(path);
+  const last = parts.pop();
+  const value = parts.reduce((current, part) => {
+    return current ? current[part] : undefined;
+  }, data);
+  return value ? value[last] : undefined;
+};
+
 const addAuditLogObject = (currentObject, original) => {
   const user = currentObject.__user || module.exports.getUser();
 
@@ -31,14 +49,29 @@ const addAuditLogObject = (currentObject, original) => {
       changes: changes.reduce((obj, change) => {
         const key = change.path.join('.');
         if (change.kind === 'D') {
-          handleAudits(change.lhs, 'from', 'Delete', obj, key);
+          handleAudits(change.lhs, 'from', types.delete, obj, key);
         } else if (change.kind === 'N') {
-          handleAudits(change.rhs, 'to', 'Add', obj, key);
+          handleAudits(change.rhs, 'to', types.add, obj, key);
+        } else if (change.kind === 'A') {
+          if (!obj[key] && change.path.length) {
+            const data = {
+              from: extractArray(original, change.path),
+              to: extractArray(currentObject, change.path)
+            };
+            if (data.from.length && data.to.length) {
+              data.type = types.edit;
+            } else if (data.from.length) {
+              data.type = types.delete;
+            } else if (data.to.length) {
+              data.type = types.add;
+            }
+            obj[key] = data;
+          }
         } else {
           obj[key] = {
             from: change.lhs,
             to: change.rhs,
-            type: 'Edit'
+            type: types.edit
           };
         }
         return obj;
