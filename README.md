@@ -1,3 +1,6 @@
+### Unmaintained / archived; use at your own risk.
+
+
 # mongoose-audit-log
 
 **mongoose-audit-log** is a mongoose plugin to manage an audit log of changes to the MongoDB database.
